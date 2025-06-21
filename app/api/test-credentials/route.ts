@@ -1,4 +1,9 @@
-// Create this file: app/api/test-credentials/route.ts
+// app/api/test-credentials/route.ts - FIXED VERSION
+// app/api/test-credentials/route.ts - ADD THIS SSL FIX AT THE TOP
+if (process.env.NODE_ENV === "development") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+}
+
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,6 +15,7 @@ export async function GET(request: NextRequest) {
     timestamp: new Date().toISOString(),
     zoom: { status: 'unknown', message: '' },
     email: { status: 'unknown', message: '' },
+    firebase: { status: 'unknown', message: '' },
     environment: process.env.NODE_ENV
   };
 
@@ -63,7 +69,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Zoom test exception:', error);
   }
 
-  // Test Email credentials
+  // Test Email credentials - FIXED
   try {
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_APP_PASSWORD;
@@ -77,7 +83,9 @@ export async function GET(request: NextRequest) {
       console.log('🔄 Testing email connection...');
       
       const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransporter({
+      
+      // FIXED: Use createTransport (not createTransporter)
+      const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: emailUser,
@@ -102,15 +110,75 @@ export async function GET(request: NextRequest) {
     console.error('❌ Email test failed:', error);
   }
 
+  // Test Firebase Admin credentials
+  try {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+    if (!projectId || !clientEmail || !privateKey) {
+      results.firebase = { 
+        status: 'error', 
+        message: 'Missing Firebase Admin environment variables' 
+      };
+    } else {
+      // Try to initialize Firebase Admin (if not already done)
+      try {
+        const { admin } = await import('@/lib/firebase-admin');
+        
+        // Test a simple operation
+        const db = admin.firestore();
+        await db.collection('test').limit(1).get();
+        
+        results.firebase = { 
+          status: 'success', 
+          message: 'Firebase Admin credentials are valid' 
+        };
+        console.log('✅ Firebase Admin working');
+      } catch (error: any) {
+        results.firebase = { 
+          status: 'error', 
+          message: `Firebase Admin error: ${error.message}` 
+        };
+        console.error('❌ Firebase Admin failed:', error);
+      }
+    }
+  } catch (error: any) {
+    results.firebase = { 
+      status: 'error', 
+      message: `Firebase test error: ${error.message}` 
+    };
+    console.error('❌ Firebase test exception:', error);
+  }
+
   // Check environment variables (without exposing secrets)
   const envCheck = {
+    NODE_ENV: process.env.NODE_ENV,
+    
+    // Firebase Client (Frontend)
+    NEXT_PUBLIC_FIREBASE_API_KEY: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    
+    // Firebase Admin (Backend)  
+    FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_CLIENT_EMAIL: !!process.env.FIREBASE_CLIENT_EMAIL,
+    FIREBASE_PRIVATE_KEY: !!process.env.FIREBASE_PRIVATE_KEY,
+    
+    // Stripe
     STRIPE_SECRET_KEY: !!process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: !!process.env.STRIPE_WEBHOOK_SECRET,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    
+    // Zoom
     ZOOM_CLIENT_ID: !!process.env.ZOOM_CLIENT_ID,
     ZOOM_CLIENT_SECRET: !!process.env.ZOOM_CLIENT_SECRET,
     ZOOM_ACCOUNT_ID: !!process.env.ZOOM_ACCOUNT_ID,
+    
+    // Email
     EMAIL_USER: !!process.env.EMAIL_USER,
     EMAIL_APP_PASSWORD: !!process.env.EMAIL_APP_PASSWORD,
+    
+    // App
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'NOT_SET'
   };
 

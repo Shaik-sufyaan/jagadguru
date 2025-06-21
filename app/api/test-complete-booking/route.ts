@@ -1,4 +1,8 @@
-// Create this file: app/api/test-complete-booking/route.ts
+// app/api/test-complete-booking/route.ts
+if (process.env.NODE_ENV === "development") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+}
+
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +14,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const testEmail = body.email || 'test@example.com'; // Allow custom email for testing
+    const testEmail = body.email || 'test@example.com';
     
     // Simulate the exact data structure from webhook
     const testBookingData = {
@@ -20,7 +24,7 @@ export async function POST(request: NextRequest) {
       customerPhone: body.phone || '+1234567890',
       service: 'Test Consultation',
       serviceId: 'test-service',
-      date: body.date || '2024-12-25', // Use future date
+      date: body.date || '2025-06-25',
       time: body.time || '2:00 PM',
       duration: '30',
       timezone: 'America/New_York',
@@ -162,7 +166,7 @@ async function createZoomMeeting(bookingData: any) {
     },
   };
 
-  const meetingResponse = await fetch('https://api.zoom.us/v2/users/me/meetings', {
+  const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
@@ -171,12 +175,12 @@ async function createZoomMeeting(bookingData: any) {
     body: JSON.stringify(meetingData),
   });
 
-  if (!meetingResponse.ok) {
-    const error = await meetingResponse.text();
+  if (!response.ok) {
+    const error = await response.text();
     throw new Error(`Failed to create Zoom meeting: ${error}`);
   }
 
-  const meeting = await meetingResponse.json();
+  const meeting = await response.json();
 
   return {
     id: meeting.id.toString(),
@@ -203,7 +207,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   const adminMailOptions = {
     from: {
       name: 'JAGADGURU Booking System',
-      address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      address: process.env.EMAIL_USER,
     },
     to: process.env.EMAIL_USER,
     subject: `🧪 TEST - New Booking: ${bookingData.customerName} - ${bookingData.service}`,
@@ -213,7 +217,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   const customerMailOptions = {
     from: {
       name: 'JAGADGURU',
-      address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      address: process.env.EMAIL_USER,
     },
     to: bookingData.customerEmail,
     subject: `🧪 TEST - Meeting Confirmed: ${bookingData.service} on ${new Date(bookingData.date).toLocaleDateString()}`,
@@ -231,7 +235,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   ]);
 }
 
-// Email templates (simplified)
+// Email templates
 function generateAdminEmailContent(bookingData: any, meetingData: any): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -294,4 +298,3 @@ function generateCustomerEmailContent(bookingData: any, meetingData: any): strin
     </html>
   `;
 }
-

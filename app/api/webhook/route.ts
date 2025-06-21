@@ -1,10 +1,13 @@
-// app/api/webhook/route.ts
+// app/api/webhook/route.ts - FIXED VERSION WITH CORRECT IMPORTS
+if (process.env.NODE_ENV === "development") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+}
+
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -68,28 +71,45 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
   console.log('🔍 Session ID:', session.id);
   console.log('🔍 Session metadata:', JSON.stringify(session.metadata, null, 2));
   
-  if (!session.metadata?.bookingId) {
+  // Check if metadata exists and has bookingId
+  if (!session.metadata || !session.metadata.bookingId) {
     console.error('❌ Missing bookingId in session metadata');
-    return NextResponse.json({ error: 'Missing bookingId' }, { status: 400 });
+    console.log('❌ Available metadata:', session.metadata);
+    return NextResponse.json({ error: 'Missing bookingId in metadata' }, { status: 400 });
   }
 
   const bookingId = session.metadata.bookingId;
   console.log('📝 Processing booking ID:', bookingId);
 
-  // First, save the initial booking data to Firestore
-  const bookingRef = doc(db, 'bookings', bookingId);
-  const initialBookingData = {
+  // Safely check metadata fields
+  const metadata = session.metadata || {};
+  const requiredFields = ['customer_name', 'customer_email', 'service', 'date', 'time'];
+  const missingFields = requiredFields.filter(field => !metadata[field]);
+  
+  if (missingFields.length > 0) {
+    console.error('❌ Missing required metadata fields:', missingFields);
+    console.log('❌ Available metadata fields:', Object.keys(metadata));
+    console.log('❌ Metadata content:', metadata);
+    return NextResponse.json({ 
+      error: 'Missing required booking data',
+      missingFields,
+      availableFields: Object.keys(metadata)
+    }, { status: 400 });
+  }
+
+  // Prepare booking data with safe metadata access
+  const bookingData = {
     bookingId: bookingId,
-    customerName: session.metadata.customer_name || session.customer_details?.name || '',
-    customerEmail: session.metadata.customer_email || session.customer_email || '',
-    customerPhone: session.metadata.customer_phone || '',
-    service: session.metadata.service || '',
-    serviceId: session.metadata.service_id || '',
-    date: session.metadata.date || '',
-    time: session.metadata.time || '',
-    duration: session.metadata.duration || '30',
-    timezone: session.metadata.timezone || 'America/New_York',
-    message: session.metadata.message || '',
+    customerName: metadata.customer_name || session.customer_details?.name || '',
+    customerEmail: metadata.customer_email || session.customer_email || '',
+    customerPhone: metadata.customer_phone || '',
+    service: metadata.service || '',
+    serviceId: metadata.service_id || '',
+    date: metadata.date || '',
+    time: metadata.time || '',
+    duration: metadata.duration || '30',
+    timezone: metadata.timezone || 'America/New_York',
+    message: metadata.message || '',
     paymentStatus: 'completed',
     stripeSessionId: session.id,
     amountPaid: session.amount_total ? session.amount_total / 100 : 0,
@@ -97,89 +117,120 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     status: 'confirmed',
     zoomMeetingCreated: false,
     emailsSent: false,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 
+  console.log('📋 Booking data prepared:', {
+    bookingId: bookingData.bookingId,
+    customerName: bookingData.customerName,
+    customerEmail: bookingData.customerEmail,
+    service: bookingData.service,
+    date: bookingData.date,
+    time: bookingData.time
+  });
+
+  // Save initial booking to Firestore using Firebase Admin
   try {
     console.log('💾 Saving initial booking to Firestore...');
-    await setDoc(bookingRef, initialBookingData, { merge: true });
+    const bookingRef = db.collection('bookings').doc(bookingId);
+    await bookingRef.set(bookingData, { merge: true });
     console.log('✅ Initial booking saved to Firestore');
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to save initial booking:', error);
-    return NextResponse.json({ error: 'Failed to save booking' }, { status: 500 });
+    console.error('❌ Error details:', error.message);
+    return NextResponse.json({ 
+      error: 'Failed to save booking', 
+      details: error.message 
+    }, { status: 500 });
   }
 
-  // Now create Zoom meeting and send emails
+  // Create Zoom meeting and send emails
+  let zoomResult = null;
+  let emailResult = false;
+
   try {
-    console.log('🔄 ===== CREATING ZOOM MEETING AND SENDING EMAILS =====');
-    
-    // Use direct function call instead of HTTP request to avoid URL issues
-    const result = await createZoomMeetingDirectly(initialBookingData);
-    
-    console.log('✅ Zoom meeting created successfully:', result.meetingId);
-    
-    // Update booking with Zoom details
-    const updateData = {
-      zoomMeetingId: result.meetingId,
-      zoomJoinUrl: result.joinUrl,
-      zoomStartUrl: result.startUrl,
-      zoomPassword: result.password,
-      zoomMeetingCreated: true,
-      emailsSent: result.emailsSent,
-      updatedAt: serverTimestamp()
-    };
-    
-    await setDoc(bookingRef, updateData, { merge: true });
-    console.log('✅ Booking updated with Zoom details');
-    
-    return NextResponse.json({ 
-      received: true, 
-      bookingId: bookingId,
-      zoomMeetingId: result.meetingId,
-      emailsSent: result.emailsSent
-    });
-    
+    console.log('🔄 ===== CREATING ZOOM MEETING =====');
+    zoomResult = await createZoomMeetingWithRetry(bookingData);
+    console.log('✅ Zoom meeting created successfully:', zoomResult.id);
   } catch (error: any) {
-    console.error('❌ FAILED to create Zoom meeting or send emails:', error);
-    console.error('❌ Error details:', error.message);
-    console.error('❌ Error stack:', error.stack);
+    console.error('❌ FAILED to create Zoom meeting:', error);
     
     // Update booking with error info
-    await setDoc(bookingRef, {
-      zoomMeetingCreated: false,
-      zoomMeetingError: error.message,
-      emailsSent: false,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-    
-    // Return success to Stripe (don't retry) but log the error
-    return NextResponse.json({ 
-      received: true, 
-      error: error.message,
-      bookingId: bookingId 
-    });
+    try {
+      const bookingRef = db.collection('bookings').doc(bookingId);
+      await bookingRef.update({
+        zoomMeetingCreated: false,
+        zoomMeetingError: error.message,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (updateError) {
+      console.error('❌ Failed to update booking with Zoom error:', updateError);
+    }
   }
+
+  // Send emails only if Zoom meeting was created
+  if (zoomResult) {
+    try {
+      console.log('📧 ===== SENDING EMAILS =====');
+      await sendConfirmationEmailsWithRetry(bookingData, zoomResult);
+      emailResult = true;
+      console.log('✅ Emails sent successfully');
+    } catch (error: any) {
+      console.error('❌ Failed to send emails:', error);
+    }
+  }
+
+  // Update booking with final results
+  try {
+    const bookingRef = db.collection('bookings').doc(bookingId);
+    const updateData: any = {
+      updatedAt: new Date().toISOString(),
+      emailsSent: emailResult
+    };
+
+    if (zoomResult) {
+      updateData.zoomMeetingId = zoomResult.id;
+      updateData.zoomJoinUrl = zoomResult.join_url;
+      updateData.zoomStartUrl = zoomResult.start_url;
+      updateData.zoomPassword = zoomResult.password;
+      updateData.zoomMeetingCreated = true;
+    }
+
+    await bookingRef.update(updateData);
+    console.log('✅ Booking updated with final results');
+  } catch (error) {
+    console.error('❌ Failed to update booking with results:', error);
+  }
+
+  return NextResponse.json({ 
+    received: true, 
+    bookingId: bookingId,
+    zoomMeetingCreated: !!zoomResult,
+    zoomMeetingId: zoomResult?.id || null,
+    emailsSent: emailResult
+  });
 }
 
 async function handleCheckoutSessionExpired(event: Stripe.Event) {
   const session = event.data.object as Stripe.Checkout.Session;
   console.log('⏰ Handling expired session:', session.id);
   
-  if (!session.metadata?.bookingId) {
+  // Safe metadata access
+  if (!session.metadata || !session.metadata.bookingId) {
     return NextResponse.json({ received: true });
   }
   
-  const bookingRef = doc(db, 'bookings', session.metadata.bookingId);
-  
   try {
-    const docSnap = await getDoc(bookingRef);
-    if (docSnap.exists()) {
-      await setDoc(bookingRef, {
+    const bookingRef = db.collection('bookings').doc(session.metadata.bookingId);
+    const doc = await bookingRef.get();
+    
+    if (doc.exists) {
+      await bookingRef.update({
         paymentStatus: 'expired',
         stripeSessionId: session.id,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+        updatedAt: new Date().toISOString()
+      });
       console.log(`✅ Marked booking ${session.metadata.bookingId} as expired`);
     }
     return NextResponse.json({ received: true });
@@ -189,40 +240,53 @@ async function handleCheckoutSessionExpired(event: Stripe.Event) {
   }
 }
 
-// Direct function to create Zoom meeting and send emails (no HTTP calls)
-async function createZoomMeetingDirectly(bookingData: any) {
-  console.log('🔄 Creating Zoom meeting directly...');
+// Zoom meeting creation with retry logic
+async function createZoomMeetingWithRetry(bookingData: any, maxRetries = 3) {
+  let lastError;
   
-  try {
-    // Create Zoom meeting
-    const meetingData = await createZoomMeeting(bookingData);
-    console.log('✅ Zoom meeting created:', meetingData.id);
-    
-    // Send emails
-    let emailsSent = false;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await sendConfirmationEmails(bookingData, meetingData);
-      emailsSent = true;
-      console.log('✅ Emails sent successfully');
-    } catch (emailError) {
-      console.error('❌ Failed to send emails:', emailError);
+      console.log(`🔄 Zoom meeting creation attempt ${attempt}/${maxRetries}`);
+      return await createZoomMeeting(bookingData);
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Zoom attempt ${attempt} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        const delay = attempt * 2000; // 2s, 4s, 6s delays
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
-    
-    return {
-      meetingId: meetingData.id,
-      joinUrl: meetingData.join_url,
-      startUrl: meetingData.start_url,
-      password: meetingData.password,
-      emailsSent: emailsSent
-    };
-    
-  } catch (error) {
-    console.error('❌ Error in createZoomMeetingDirectly:', error);
-    throw error;
   }
+  
+  throw lastError;
 }
 
-// Zoom meeting creation function (copy from your booking route)
+// Email sending with retry logic  
+async function sendConfirmationEmailsWithRetry(bookingData: any, meetingData: any, maxRetries = 2) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`📧 Email sending attempt ${attempt}/${maxRetries}`);
+      await sendConfirmationEmails(bookingData, meetingData);
+      return;
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Email attempt ${attempt} failed:`, error.message);
+      
+      if (attempt < maxRetries) {
+        console.log(`⏳ Retrying emails in 3s...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
+// Enhanced Zoom meeting creation function
 async function createZoomMeeting(bookingData: any) {
   console.log('🔄 Getting Zoom access token...');
   
@@ -231,47 +295,76 @@ async function createZoomMeeting(bookingData: any) {
   const accountId = process.env.ZOOM_ACCOUNT_ID;
 
   if (!clientId || !clientSecret || !accountId) {
-    throw new Error('Missing Zoom credentials in environment variables');
+    throw new Error('Missing Zoom credentials. Check ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET, and ZOOM_ACCOUNT_ID in environment variables.');
   }
 
-  // Get access token
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-  const tokenResponse = await fetch('https://zoom.us/oauth/token', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      grant_type: 'account_credentials',
-      account_id: accountId,
-    }),
-  });
+  // Get access token with better error handling
+  let accessToken;
+  try {
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    const tokenResponse = await fetch('https://zoom.us/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'account_credentials',
+        account_id: accountId,
+      }),
+    });
 
-  if (!tokenResponse.ok) {
-    const error = await tokenResponse.text();
-    throw new Error(`Failed to get Zoom access token: ${error}`);
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('❌ Zoom token response:', errorText);
+      throw new Error(`Failed to get Zoom access token: ${tokenResponse.status} ${errorText}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    accessToken = tokenData.access_token;
+    
+    if (!accessToken) {
+      throw new Error('No access token received from Zoom API');
+    }
+    
+    console.log('✅ Zoom access token obtained');
+  } catch (error: any) {
+    console.error('❌ Failed to get Zoom access token:', error);
+    throw new Error(`Zoom authentication failed: ${error.message}`);
   }
 
-  const tokenData = await tokenResponse.json();
-  const accessToken = tokenData.access_token;
-  
-  console.log('✅ Zoom access token obtained');
+  // Parse date and time with better validation
+  let startTime;
+  try {
+    const baseDate = new Date(bookingData.date + 'T00:00:00');
+    
+    if (isNaN(baseDate.getTime())) {
+      throw new Error(`Invalid date format: ${bookingData.date}`);
+    }
+    
+    const [time, modifier] = bookingData.time.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
 
-  // Parse date and time
-  const baseDate = new Date(bookingData.date + 'T00:00:00');
-  const [time, modifier] = bookingData.time.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) {
+      throw new Error(`Invalid time format: ${bookingData.time}`);
+    }
 
-  if (modifier === 'PM' && hours < 12) hours += 12;
-  if (modifier === 'AM' && hours === 12) hours = 0;
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
 
-  baseDate.setHours(hours, minutes, 0, 0);
+    baseDate.setHours(hours, minutes, 0, 0);
+    startTime = baseDate;
+    
+    console.log('📅 Meeting scheduled for:', startTime.toISOString());
+  } catch (error: any) {
+    console.error('❌ Failed to parse date/time:', error);
+    throw new Error(`Date/time parsing failed: ${error.message}`);
+  }
 
   const meetingData = {
     topic: `${bookingData.service} - ${bookingData.customerName}`,
     type: 2,
-    start_time: baseDate.toISOString(),
+    start_time: startTime.toISOString(),
     duration: parseInt(bookingData.duration) || 30,
     timezone: bookingData.timezone || 'America/New_York',
     settings: {
@@ -285,7 +378,12 @@ async function createZoomMeeting(bookingData: any) {
     },
   };
 
-  console.log('🔄 Creating Zoom meeting with data:', meetingData);
+  console.log('🔄 Creating Zoom meeting with data:', {
+    topic: meetingData.topic,
+    start_time: meetingData.start_time,
+    duration: meetingData.duration,
+    timezone: meetingData.timezone
+  });
 
   const meetingResponse = await fetch('https://api.zoom.us/v2/users/me/meetings', {
     method: 'POST',
@@ -297,9 +395,9 @@ async function createZoomMeeting(bookingData: any) {
   });
 
   if (!meetingResponse.ok) {
-    const error = await meetingResponse.text();
-    console.error('❌ Zoom API error:', error);
-    throw new Error(`Failed to create Zoom meeting: ${error}`);
+    const errorText = await meetingResponse.text();
+    console.error('❌ Zoom meeting creation error:', errorText);
+    throw new Error(`Failed to create Zoom meeting: ${meetingResponse.status} ${errorText}`);
   }
 
   const meeting = await meetingResponse.json();
@@ -315,26 +413,43 @@ async function createZoomMeeting(bookingData: any) {
   };
 }
 
-// Email sending function
+// Enhanced email sending function
 async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   console.log('📧 Sending confirmation emails...');
   
+  const emailUser = process.env.EMAIL_USER;
+  const emailPassword = process.env.EMAIL_APP_PASSWORD;
+  
+  if (!emailUser || !emailPassword) {
+    throw new Error('Missing email credentials. Check EMAIL_USER and EMAIL_APP_PASSWORD in environment variables.');
+  }
+  
   const nodemailer = require('nodemailer');
   
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_APP_PASSWORD,
-    },
-  });
+  let transporter;
+  try {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: emailUser,
+        pass: emailPassword,
+      },
+    });
+    
+    // Verify transporter
+    await transporter.verify();
+    console.log('✅ Email transporter verified');
+  } catch (error: any) {
+    console.error('❌ Email transporter setup failed:', error);
+    throw new Error(`Email setup failed: ${error.message}`);
+  }
 
   const adminMailOptions = {
     from: {
       name: 'JAGADGURU Booking System',
-      address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      address: emailUser,
     },
-    to: process.env.EMAIL_USER,
+    to: emailUser,
     subject: `🆕 New Booking: ${bookingData.customerName} - ${bookingData.service}`,
     html: generateAdminEmailContent(bookingData, meetingData),
   };
@@ -342,22 +457,31 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   const customerMailOptions = {
     from: {
       name: 'JAGADGURU',
-      address: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      address: emailUser,
     },
     to: bookingData.customerEmail,
     subject: `✅ Meeting Confirmed: ${bookingData.service} on ${new Date(bookingData.date).toLocaleDateString()}`,
     html: generateCustomerEmailContent(bookingData, meetingData),
   };
 
-  await Promise.all([
-    transporter.sendMail(adminMailOptions),
-    transporter.sendMail(customerMailOptions),
-  ]);
-  
-  console.log('✅ All emails sent successfully');
+  console.log('📧 Sending emails to:', {
+    admin: emailUser,
+    customer: bookingData.customerEmail
+  });
+
+  try {
+    await Promise.all([
+      transporter.sendMail(adminMailOptions),
+      transporter.sendMail(customerMailOptions),
+    ]);
+    console.log('✅ All emails sent successfully');
+  } catch (error: any) {
+    console.error('❌ Failed to send emails:', error);
+    throw new Error(`Email sending failed: ${error.message}`);
+  }
 }
 
-// Email template functions (simplified versions)
+// Email template functions
 function generateAdminEmailContent(bookingData: any, meetingData: any): string {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
