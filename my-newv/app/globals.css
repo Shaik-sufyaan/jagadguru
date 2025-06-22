@@ -1,0 +1,518 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 217.2 91.2% 59.8%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Flat Design - No Shadows */
+.shadow-sm,
+.shadow,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl {
+  box-shadow: none !important;
+}
+
+/* Clean borders for separation */
+.border {
+  border-width: 1px;
+}
+
+/* Ensure clean, flat buttons */
+.btn-flat {
+  box-shadow: none;
+  border-radius: 0.375rem;
+}
+
+/* Remove any default shadows from components */
+*[class*="shadow"] {
+  box-shadow: none !important;
+}
+
+/* Ensure dropdowns have clean borders instead of shadows */
+.dropdown-menu {
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+/* Clean focus states */
+.focus\:ring-2:focus {
+  box-shadow: none;
+  border-color: #d97706;
+}
+
+/* Ensure cards have clean borders */
+.card {
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
+}
+
+/* Globe Animation Styles */
+.globe-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.globe {
+  width: 400px;
+  height: 400px;
+  position: relative;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  animation: rotate 20s linear infinite;
+  overflow: hidden;
+}
+
+.globe-sphere {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.latitude-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.4) 50%, transparent 100%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.longitude-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(0deg, transparent 0%, rgba(147, 51, 234, 0.4) 50%, transparent 100%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.connection-point {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(59, 130, 246, 0.8);
+  border-radius: 50%;
+  animation: blink 2s ease-in-out infinite;
+}
+
+.connection-point::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 8px;
+  height: 8px;
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 50%;
+  animation: ripple 2s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .globe {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .globe {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+/* New Animations */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+@keyframes gradient-x {
+  0%,
+  100% {
+    background-size: 200% 200%;
+    background-position: left center;
+  }
+  50% {
+    background-size: 200% 200%;
+    background-position: right center;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animate-gradient-x {
+  animation: gradient-x 3s ease infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+}
+
+.animate-fade-in-right {
+  animation: fade-in-right 0.8s ease-out forwards;
+}
+
+.animation-delay-500 {
+  animation-delay: 0.5s;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1s;
+}
+
+.animation-delay-1500 {
+  animation-delay: 1.5s;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Remove old globe styles since we're using Cobe now */
+.globe-container {
+  display: none;
+}
+
+/* Fallback Globe Styles */
+.fallback-globe {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fallback-globe .globe {
+  width: 400px;
+  height: 400px;
+  position: relative;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  animation: rotate 20s linear infinite;
+  overflow: hidden;
+}
+
+.fallback-globe .globe-sphere {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.fallback-globe .latitude-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.4) 50%, transparent 100%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.fallback-globe .longitude-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(0deg, transparent 0%, rgba(147, 51, 234, 0.4) 50%, transparent 100%);
+  animation: pulse 3s ease-in-out infinite;
+}
+
+.fallback-globe .connection-point {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(59, 130, 246, 0.8);
+  border-radius: 50%;
+  animation: blink 2s ease-in-out infinite;
+}
+
+.fallback-globe .connection-point::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 8px;
+  height: 8px;
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 50%;
+  animation: ripple 2s ease-in-out infinite;
+}
+
+/* Responsive adjustments for fallback */
+@media (max-width: 768px) {
+  .fallback-globe .globe {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fallback-globe .globe {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+/* Mobile Performance Optimizations */
+@media (max-width: 768px) {
+  /* Reduce animation complexity on mobile */
+  .animate-blob {
+    animation: blob 10s infinite; /* Slower animation */
+  }
+
+  .animate-gradient-x {
+    animation: gradient-x 4s ease infinite; /* Slower gradient */
+  }
+
+  /* Simplified globe for mobile */
+  .mobile-globe {
+    width: 300px !important;
+    height: 300px !important;
+  }
+
+  .mobile-globe .latitude-line,
+  .mobile-globe .longitude-line {
+    animation-duration: 4s; /* Slower animations */
+  }
+
+  .mobile-globe .connection-point {
+    animation-duration: 3s;
+  }
+
+  /* Reduce blur effects on mobile */
+  .blur-3xl {
+    filter: blur(20px);
+  }
+
+  /* Optimize transforms for mobile */
+  .transform {
+    transform: translateZ(0); /* Enable hardware acceleration */
+  }
+
+  /* Reduce shadow complexity */
+  .shadow-lg {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+
+  .shadow-xl {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-globe {
+    width: 250px !important;
+    height: 250px !important;
+  }
+
+  /* Further reduce animations on small screens */
+  .animate-blob {
+    animation: blob 15s infinite;
+  }
+
+  /* Disable some animations on very small screens */
+  .animate-bounce {
+    animation: none;
+  }
+}
+
+/* Performance optimizations for all devices */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* Optimize testimonial cards for mobile */
+@media (max-width: 768px) {
+  .testimonial-card {
+    transform: none; /* Disable hover transforms on mobile */
+  }
+
+  .testimonial-card:hover {
+    transform: none;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-gradient-x,
+  .animate-bounce,
+  .animate-spin,
+  .animate-pulse {
+    animation: none;
+  }
+
+  .transition-all,
+  .transition-transform,
+  .transition-opacity {
+    transition: none;
+  }
+}
+
+/* GPU acceleration hints */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize background gradients for mobile */
+@media (max-width: 768px) {
+  .bg-gradient-to-br {
+    background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 50%, #fce7f3 100%);
+  }
+}
+
+/* Wave Background Animation */
+.wave-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(-45deg, #f59e0b, #b45309, #d97706, #f59e0b);
+  background-size: 400% 400%;
+  animation: gradient-wave 8s ease infinite;
+  z-index: 0;
+}
+
+@keyframes gradient-wave {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
