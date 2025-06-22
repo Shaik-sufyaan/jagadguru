@@ -1,3 +1,9 @@
+import { NextResponse } from 'next/server';
+
+export async function POST() {
+  return NextResponse.json({ message: 'Not implemented yet' });
+}
+
 // // app/api/booking/route.ts
 // //
 // //  THE CODE HELPS WITH BOOKING A MEETING AND SENDING MAILS TO THE HOST AND THE USER.
