@@ -73,7 +73,11 @@ export default function SchedulePage() {
 
   const lockTimeSlot = (date: Date, time: string) => {
     const slotKey = `${date.toDateString()}-${time}`
-    setLockedSlots((prev) => new Set([...prev, slotKey]))
+    setLockedSlots((prev) => {
+      const newSet = new Set(prev)
+      newSet.add(slotKey)
+      return newSet
+    })
 
     if (sessionTimeoutRef.current) {
       clearTimeout(sessionTimeoutRef.current)
@@ -406,14 +410,6 @@ export default function SchedulePage() {
       </div>
     )
   }
-  
-//   useEffect(() => {
-//   const urlParams = new URLSearchParams(window.location.search);
-//   const sessionId = urlParams.get('session_id');
-//   if (sessionId) {
-//     console.log('Payment completed with session:', sessionId);
-//   }
-// }, []);
 
   if (isSubmitted) {
     return (
@@ -424,7 +420,7 @@ export default function SchedulePage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Booking Confirmed!</h1>
           <p className="text-gray-600 mb-6">
-            Your consultation has been booked successfully. You'll receive a confirmation email with the Zoom link
+            Your consultation has been booked successfully. You will receive a confirmation email with the Zoom link
             shortly.
           </p>
           <div className="bg-gray-50 border border-gray-200 rounded p-4 mb-6">

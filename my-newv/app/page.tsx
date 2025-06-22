@@ -22,90 +22,10 @@ import {
 
 import TestimonialsSection from "@/components/testimonials-section"
 
-// Declare global types for external libraries
-// declare global {
-//   interface Window {
-//     THREE: any
-//     VANTA: any
-//   }
-// }
-
-
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // useEffect(() => {
-  //   // Load Three.js and Vanta.js scripts
-  //   const loadScripts = async () => {
-
-  //     if (window.innerWidth < 768) return;
-  //     try {
-  //       // Load Three.js
-  //       if (!window.THREE) {
-  //         const threeScript = document.createElement("script")
-  //         threeScript.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"
-  //         threeScript.crossOrigin = "anonymous"
-  //         document.head.appendChild(threeScript)
-
-  //         await new Promise((resolve, reject) => {
-  //           threeScript.onload = resolve
-  //           threeScript.onerror = reject
-  //         })
-  //       }
-
-  //       // Load Vanta Waves
-  //       if (!window.VANTA) {
-  //         const vantaScript = document.createElement("script")
-  //         vantaScript.src = "https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"
-  //         vantaScript.crossOrigin = "anonymous"
-  //         document.head.appendChild(vantaScript)
-
-  //         await new Promise((resolve, reject) => {
-  //           vantaScript.onload = resolve
-  //           vantaScript.onerror = reject
-  //         })
-  //       }
-
-  //       // Initialize Vanta effect
-  //       if (window.VANTA && window.THREE) {
-  //         const vantaElement = document.getElementById("vanta-bg")
-  //         if (vantaElement) {
-  //           window.VANTA.WAVES({
-  //             el: vantaElement,
-  //             mouseControls: true,
-  //             touchControls: true,
-  //             gyroControls: false,
-  //             scale: 1,
-  //             scaleMobile: 1,
-  //             minHeight: 200,
-  //             minWidth: 200,
-  //             color: 0xb45309,
-  //             shininess: 45, // Reduced from 45
-  //             waveHeight: 20, // Reduced from 20
-  //             waveSpeed: 0.6, // Reduced from 0.6
-  //             zoom: 0.65,
-  //           })
-  //         }
-  //       }
-  //     } catch (error) {
-  //       console.log("Error loading Vanta scripts:", error)
-  //     }
-  //   }
-
-  //   loadScripts()
-
-  //   // Cleanup function
-  //   return () => {
-  //     if (window.VANTA) {
-  //       try {
-  //         window.VANTA.current?.destroy?.()
-  //       } catch (e) {
-  //         console.log("Vanta cleanup error:", e)
-  //       }
-  //     }
-  //   }
-  // }, [])
-
+  
   return (
     <div className="relative min-h-screen">
       {/* CSS Wave Background */}
