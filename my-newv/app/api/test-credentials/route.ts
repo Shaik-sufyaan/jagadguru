@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Email test failed:', error);
   }
 
-  // Test Firebase Admin credentials
+  // Test Firebase Admin credentials - FIXED
   try {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -124,10 +124,9 @@ export async function GET(request: NextRequest) {
     } else {
       // Try to initialize Firebase Admin (if not already done)
       try {
-        const { admin } = await import('@/lib/firebase-admin');
+        const { db } = await import('@/lib/firebase-admin');
         
         // Test a simple operation
-        const db = admin.firestore();
         await db.collection('test').limit(1).get();
         
         results.firebase = { 

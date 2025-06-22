@@ -53,4 +53,5 @@ class FirebaseAdmin {
 // Export the singleton instance
 const firebaseAdmin = FirebaseAdmin.getInstance();
 export const db = firebaseAdmin.db;
+export { admin };
 export default admin;
