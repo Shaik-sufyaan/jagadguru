@@ -1,7 +1,6 @@
 // app/api/test-credentials/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-// SSL fix for development
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 }
@@ -69,7 +68,7 @@ export async function GET() {
     console.error('❌ Zoom test exception:', error);
   }
 
-  // Test Email credentials
+  // Test Email credentials - FIXED TYPO
   try {
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_APP_PASSWORD;
@@ -84,7 +83,8 @@ export async function GET() {
       
       const nodemailer = require('nodemailer');
       
-      const transporter = nodemailer.createTransporter({
+      // FIXED: createTransport (not createTransporter)
+      const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: emailUser,
@@ -122,6 +122,7 @@ export async function GET() {
       };
     } else {
       console.log('🔄 Testing Firebase Admin connection...');
+      console.log('🔍 Private key preview:', privateKey.substring(0, 50) + '...');
       
       try {
         const { db } = await import('@/lib/firebase-admin');
@@ -178,10 +179,16 @@ export async function GET() {
     EMAIL_APP_PASSWORD: !!process.env.EMAIL_APP_PASSWORD,
     
     // App
-    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'NOT_SET'
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'NOT_SET',
+    
+    // Debug info
+    privateKeyFormat: {
+      hasQuotes: process.env.FIREBASE_PRIVATE_KEY?.includes('"'),
+      hasEscapedSlashes: process.env.FIREBASE_PRIVATE_KEY?.includes('\\\\'),
+      startsCorrectly: process.env.FIREBASE_PRIVATE_KEY?.startsWith('-----BEGIN'),
+      length: process.env.FIREBASE_PRIVATE_KEY?.length || 0
+    }
   };
-
-  console.log('🔍 Environment variables check:', envCheck);
 
   return NextResponse.json({
     ...results,
