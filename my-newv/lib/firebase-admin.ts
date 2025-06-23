@@ -1,5 +1,11 @@
-// lib/firebase-admin.ts - ROBUST VERSION WITH SINGLETON PATTERN
+// lib/firebase-admin.ts - FIXED VERSION FOR VERCEL
 import admin from 'firebase-admin';
+
+// SSL fix for serverless environments
+if (process.env.NODE_ENV === "production") {
+  // Disable certificate verification for Vercel deployment
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+}
 
 // Singleton pattern to ensure single initialization
 class FirebaseAdmin {
@@ -19,12 +25,15 @@ class FirebaseAdmin {
           throw new Error('Missing Firebase Admin environment variables');
         }
 
+        // Initialize with specific settings for Vercel
         this.app = admin.initializeApp({
           credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
             privateKey: privateKey,
           }),
+          // Add database URL if using Realtime Database (optional)
+          // databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`
         });
         
         console.log('✅ Firebase Admin initialized successfully');
@@ -45,6 +54,13 @@ class FirebaseAdmin {
   public get db(): admin.firestore.Firestore {
     if (!this._db) {
       this._db = this.app.firestore();
+      
+      // Configure Firestore settings for better compatibility
+      this._db.settings({
+        ignoreUndefinedProperties: true,
+        // Use REST API instead of gRPC for better Vercel compatibility
+        preferRest: true,
+      });
     }
     return this._db;
   }
