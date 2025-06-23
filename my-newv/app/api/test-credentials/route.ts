@@ -1,14 +1,14 @@
-// app/api/test-credentials/route.ts - FIXED VERSION
-// app/api/test-credentials/route.ts - ADD THIS SSL FIX AT THE TOP
+// app/api/test-credentials/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
+// SSL fix for development
 if (process.env.NODE_ENV === "development") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 }
 
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   console.log('🧪 Testing credentials...');
   
   const results = {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Zoom test exception:', error);
   }
 
-  // Test Email credentials - FIXED
+  // Test Email credentials
   try {
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_APP_PASSWORD;
@@ -84,8 +84,7 @@ export async function GET(request: NextRequest) {
       
       const nodemailer = require('nodemailer');
       
-      // FIXED: Use createTransport (not createTransporter)
-      const transporter = nodemailer.createTransport({
+      const transporter = nodemailer.createTransporter({
         service: 'gmail',
         auth: {
           user: emailUser,
@@ -110,7 +109,7 @@ export async function GET(request: NextRequest) {
     console.error('❌ Email test failed:', error);
   }
 
-  // Test Firebase Admin credentials - FIXED
+  // Test Firebase Admin credentials
   try {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -122,7 +121,8 @@ export async function GET(request: NextRequest) {
         message: 'Missing Firebase Admin environment variables' 
       };
     } else {
-      // Try to initialize Firebase Admin (if not already done)
+      console.log('🔄 Testing Firebase Admin connection...');
+      
       try {
         const { db } = await import('@/lib/firebase-admin');
         
