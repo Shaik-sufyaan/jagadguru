@@ -3,9 +3,9 @@ import { type NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/firebase-admin"
 const nodemailer = require("nodemailer")
 
-if (process.env.NODE_ENV === "development") {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
-}
+// if (process.env.NODE_ENV === "development") {
+//   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+// }
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
