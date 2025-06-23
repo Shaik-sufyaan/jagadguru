@@ -1,7 +1,6 @@
 // app/api/booking-details/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,12 +14,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Query Firebase for booking with matching Stripe session ID
-    const bookingsRef = collection(db, 'bookings');
-    const q = query(bookingsRef, where('stripe_session_id', '==', sessionId));
-    const querySnapshot = await getDocs(q);
+    // Query Firebase Admin for booking with matching Stripe session ID
+    const snapshot = await db.collection('bookings')
+      .where('stripe_session_id', '==', sessionId)
+      .get();
 
-    if (querySnapshot.empty) {
+    if (snapshot.empty) {
       return NextResponse.json(
         { error: 'Booking not found' },
         { status: 404 }
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the first (and should be only) matching document
-    const bookingDoc = querySnapshot.docs[0];
+    const bookingDoc = snapshot.docs[0];
     const bookingData = bookingDoc.data();
 
     // Return the booking details
