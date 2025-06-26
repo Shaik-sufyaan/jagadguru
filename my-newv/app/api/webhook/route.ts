@@ -417,6 +417,7 @@ async function createZoomMeeting(bookingData: any) {
 async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   console.log('📧 Sending confirmation emails...');
   
+  const email2User = 'admin@thejagadguru.com'
   const emailUser = process.env.EMAIL_USER;
   const emailPassword = process.env.EMAIL_APP_PASSWORD;
   
@@ -449,7 +450,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
       name: 'JAGADGURU Booking System',
       address: emailUser,
     },
-    to: emailUser,
+    to: [emailUser, email2User],
     subject: `🆕 New Booking: ${bookingData.customerName} - ${bookingData.service}`,
     html: generateAdminEmailContent(bookingData, meetingData),
   };
@@ -465,7 +466,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   };
 
   console.log('📧 Sending emails to:', {
-    admin: emailUser,
+    admin: [emailUser, email2User],
     customer: bookingData.customerEmail
   });
 
