@@ -428,7 +428,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   
   let transporter;
   try {
-    transporter = nodemailer.createTransporter({
+    transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: emailUser,
