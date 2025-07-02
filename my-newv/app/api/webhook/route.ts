@@ -92,7 +92,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     }, { status: 400 });
   }
 
-  // Prepare booking data with safe metadata access
+  // 🔧 FIX: Include stripeSessionId in the initial booking data
   const bookingData = {
     bookingId: bookingId,
     customerName: metadata.customer_name || session.customer_details?.name || '',
@@ -106,7 +106,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     timezone: metadata.timezone || 'America/New_York',
     message: metadata.message || '',
     paymentStatus: 'completed',
-    stripeSessionId: session.id,
+    stripeSessionId: session.id, // 🔧 FIX: Add this line!
     amountPaid: session.amount_total ? session.amount_total / 100 : 0,
     currency: session.currency || 'usd',
     status: 'confirmed',
@@ -122,7 +122,8 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     customerEmail: bookingData.customerEmail,
     service: bookingData.service,
     date: bookingData.date,
-    time: bookingData.time
+    time: bookingData.time,
+    stripeSessionId: bookingData.stripeSessionId // 🔧 FIX: Log this too
   });
 
   // Save initial booking to Firestore using Firebase Admin
@@ -130,7 +131,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     console.log('💾 Saving initial booking to Firestore...');
     const bookingRef = db.collection('bookings').doc(bookingId);
     await bookingRef.set(bookingData, { merge: true });
-    console.log('✅ Initial booking saved to Firestore');
+    console.log('✅ Initial booking saved to Firestore with stripeSessionId:', session.id);
   } catch (error: any) {
     console.error('❌ Failed to save initial booking:', error);
     console.error('❌ Error details:', error.message);
@@ -176,7 +177,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     }
   }
 
-  // Update booking with final results
+  // Update booking with final results (stripeSessionId already saved above)
   try {
     const bookingRef = db.collection('bookings').doc(bookingId);
     const updateData: any = {
@@ -201,6 +202,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
   return NextResponse.json({ 
     received: true, 
     bookingId: bookingId,
+    stripeSessionId: session.id, // 🔧 FIX: Include in response
     zoomMeetingCreated: !!zoomResult,
     zoomMeetingId: zoomResult?.id || null,
     emailsSent: emailResult
@@ -223,7 +225,7 @@ async function handleCheckoutSessionExpired(event: Stripe.Event) {
     if (doc.exists) {
       await bookingRef.update({
         paymentStatus: 'expired',
-        stripeSessionId: session.id,
+        stripeSessionId: session.id, // 🔧 FIX: Also add stripeSessionId for expired sessions
         updatedAt: new Date().toISOString()
       });
       console.log(`✅ Marked booking ${session.metadata.bookingId} as expired`);
@@ -234,6 +236,9 @@ async function handleCheckoutSessionExpired(event: Stripe.Event) {
     return NextResponse.json({ received: true });
   }
 }
+
+// Rest of the functions remain unchanged...
+// (createZoomMeetingWithRetry, sendConfirmationEmailsWithRetry, createZoomMeeting, sendConfirmationEmails, generateAdminEmailContent, generateCustomerEmailContent)
 
 // Zoom meeting creation with retry logic
 async function createZoomMeetingWithRetry(bookingData: any, maxRetries = 3) {
@@ -423,7 +428,7 @@ async function sendConfirmationEmails(bookingData: any, meetingData: any) {
   
   let transporter;
   try {
-    transporter = nodemailer.createTransport({
+    transporter = nodemailer.createTransporter({
       service: 'gmail',
       auth: {
         user: emailUser,
